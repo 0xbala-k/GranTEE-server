@@ -23,6 +23,7 @@ from agents.question_answering import process_question
 from agents.decision_making import process_decision
 from agents.aggregator import VotingAggregator
 from agents.decision_making import DecisionState
+from agents.cdp_agent import send_scholarship, update_application_status
 
 
 # Load environment variables
@@ -216,6 +217,20 @@ def get_scholarship(scholarship_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Scholarship not found")
     return {"scholarship": scholarship_to_dict(scholarship)}
 
+@app.get("/agent_address")
+def get_agent_address():
+    try:
+        with open("./wallet_data.txt", "r") as file:
+            wallet_data = json.load(file)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading wallet data: {e}")
+    
+    default_address_id = wallet_data.get("default_address_id")
+    if not default_address_id:
+        raise HTTPException(status_code=404, detail="default_address_id not found in wallet data")
+    
+    return {"agent_address": default_address_id}
+
 # Pydantic model for the application request
 class ApplicationRequest(BaseModel):
     wallet_address: str
@@ -239,7 +254,6 @@ async def apply_scholarship(application: ApplicationRequest, db: Session = Depen
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    
     scholarship.applicants += 1
     db.commit()
     
@@ -254,7 +268,7 @@ async def apply_scholarship(application: ApplicationRequest, db: Session = Depen
         }
         
         # Process the decision
-        result = await process_decision(application.student_data, scholarship_criteria)
+        result = await process_decision(application.application_data, scholarship_criteria)
         
         # Safely access vote_count and vote_breakdown
         vote_count = result.get("vote_count", {}) or {}
@@ -275,29 +289,14 @@ async def apply_scholarship(application: ApplicationRequest, db: Session = Depen
         scholarship.applicants += 1
         db.commit()
         
-        # Generate a unique ID and timestamp for the application
-        application_id = str(uuid.uuid4())
-        current_time = datetime.datetime.now().isoformat()
-        
-        # Add timestamp to the result
-        result["created_at"] = current_time
-        
-        # Save the application result to the database
-        application_record = ScholarshipApplicationRecord(
-            id=application_id,
-            wallet_address=application.wallet_address,
-            scholarship_id=application.scholarship_id,
-            student_data=application.student_data,
-            result=result,
-            decision="approved" if result.get("decision", False) else "rejected",
-            confidence=result.get("confidence", 0.0),
-            created_at=current_time
-        )
-        db.add(application_record)
-        db.commit()
-        
-        # Add application ID to the result
-        result["application_id"] = application_id
+        decision = result.get("decision", False)
+        if decision:
+            print("Application approved!!!!")
+            send_scholarship(str(application.scholarshipId),application.wallet_address,str(int(scholarship.max_amount_per_applicant)))
+            print("Funds sent!!!!")
+        else:
+            print("Application rejected!!!!")
+            update_application_status(str(application.scholarshipId),application.wallet_address,"3")
         
         return result
     except Exception as e:

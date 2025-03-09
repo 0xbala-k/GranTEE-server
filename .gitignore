@@ -2,3 +2,5 @@
 users.db
 __pycache__
 .env
+*seed.txt
+*wallet_data.txt
