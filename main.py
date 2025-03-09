@@ -167,3 +167,35 @@ def get_scholarship(scholarship_id: str, db: Session = Depends(get_db)):
     if not scholarship:
         raise HTTPException(status_code=404, detail="Scholarship not found")
     return {"scholarship": scholarship_to_dict(scholarship)}
+
+# Pydantic model for the application request
+class ApplicationRequest(BaseModel):
+    wallet_address: str
+    scholarshipId: int
+    application_data: dict
+
+# Endpoint to handle scholarship applications
+@app.post("/apply")
+def apply_scholarship(application: ApplicationRequest, db: Session = Depends(get_db)):
+    # Lookup the scholarship by converting the numeric id to a string.
+    scholarship = db.query(Scholarship).filter(Scholarship.id == str(application.scholarshipId)).first()
+    if not scholarship:
+        raise HTTPException(status_code=404, detail="Scholarship not found")
+    
+    # - Validate the application_data,
+    # - Check if the applicant has already applied, or
+    # - Store the application in a dedicated applications table.
+    
+    
+    user = db.query(User).filter(User.wallet_address == application.wallet_address).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    
+    scholarship.applicants += 1
+    db.commit()
+    
+    return {
+        "message": "Application submitted successfully",
+        "scholarship": scholarship_to_dict(scholarship)
+    }
