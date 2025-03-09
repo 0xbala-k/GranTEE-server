@@ -70,7 +70,7 @@ curl -X POST https://grantee-server.onrender.com/scholarship \
     "maxAmountPerApplicant": 10000,
     "deadline": "2023-12-31",
     "applicants": 0,
-    "description": "Scholarship for high-achieving students with leadership potential",
+    "description": "Scholarship for high achieving students with leadership potential",
     "requirements": [
       "GPA above 3.5",
       "Demonstrated leadership experience",
