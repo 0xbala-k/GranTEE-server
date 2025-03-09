@@ -217,6 +217,20 @@ def get_scholarship(scholarship_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Scholarship not found")
     return {"scholarship": scholarship_to_dict(scholarship)}
 
+@app.get("/agent_address")
+def get_agent_address():
+    try:
+        with open("./wallet_data.txt", "r") as file:
+            wallet_data = json.load(file)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading wallet data: {e}")
+    
+    default_address_id = wallet_data.get("default_address_id")
+    if not default_address_id:
+        raise HTTPException(status_code=404, detail="default_address_id not found in wallet data")
+    
+    return {"agent_address": default_address_id}
+
 # Pydantic model for the application request
 class ApplicationRequest(BaseModel):
     wallet_address: str
