@@ -27,6 +27,10 @@ RUN adduser --disabled-password --gecos "" appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
+# Allow workload operator to override environment variables
+LABEL "tee.launch_policy.allow_env_override"="GOOGLE_API_KEY,CDP_API_KEY_NAME,CDP_API_KEY_PRIVATE_KEY"
+LABEL "tee.launch_policy.log_redirect"="always"
+
 # Expose port 8000 for the API
 EXPOSE $PORT
 
