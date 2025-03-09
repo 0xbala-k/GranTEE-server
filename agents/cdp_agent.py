@@ -46,12 +46,8 @@ def setup_wallet(wallet_data_file):
     return wallet
 
 wallet = setup_wallet("wallet_data.txt")
-contract_address_file = "./contracts/contract_address.txt"
 
-contract_address=None
-if os.path.exists(contract_address_file):
-        with open(contract_address_file) as f:
-            contract_address = f.read()
+contract_address=os.environ.get("CONTRACT_ADDRESS") or "0x8bB9c2cf58DBbFcf4436035c332426c6cd49d3bA"
 
 # example args: scholarshipId="10", applicant_address="0x....", new_status: "1"
 def update_application_status(scholarshipId: str, applicant_address: str, new_status: str):
