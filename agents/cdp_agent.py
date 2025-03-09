@@ -8,7 +8,7 @@ from cdp_langchain.utils import CdpAgentkitWrapper
 
 load_dotenv()
 
-abi_file_path = "../contracts/GranTEE.json"
+abi_file_path = "./contracts/GranTEE.json"
 
 abi=None
 if os.path.exists(abi_file_path):
@@ -46,7 +46,7 @@ def setup_wallet(wallet_data_file):
     return wallet
 
 wallet = setup_wallet("wallet_data.txt")
-contract_address_file = "../contracts/contract_address.txt"
+contract_address_file = "./contracts/contract_address.txt"
 
 contract_address=None
 if os.path.exists(contract_address_file):
