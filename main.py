@@ -54,6 +54,10 @@ class UserData(BaseModel):
     signature: str       # signature produced by signing the message with the wallet's private key
     data: str # the user's personal JSON data as string (name, age, socials, etc.)
 
+
+# Endpoint for homepage
+@app.get("/")
+
 # Endpoint to create or update a user's profile
 @app.post("/user")
 def create_or_update_user(user_data: UserData, db: Session = Depends(get_db)):
