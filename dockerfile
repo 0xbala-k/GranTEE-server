@@ -31,6 +31,8 @@ USER appuser
 LABEL "tee.launch_policy.allow_env_override"="GOOGLE_API_KEY,CDP_API_KEY_NAME,CDP_API_KEY_PRIVATE_KEY,CONTRACT_ADDRESS"
 LABEL "tee.launch_policy.log_redirect"="always"
 
+RUN rm users.db
+
 # Expose port 8000 for the API
 EXPOSE $PORT
 
