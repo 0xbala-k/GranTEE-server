@@ -8,7 +8,7 @@ This document contains sample queries for testing each of the endpoints in the G
 
 **Request to `POST /user`**
 ```bash
-curl -X POST http://localhost:8000/user \
+curl -X POST https://grantee-server.onrender.com/user \
   -H "Content-Type: application/json" \
   -d '{
     "wallet_address": "0x123abc...",
@@ -37,7 +37,7 @@ curl -X POST http://localhost:8000/user \
 
 **Request to `GET /user/{wallet_address}`**
 ```bash
-curl "http://localhost:8000/user/0x123abc...?signature=0xdef456..."
+curl "https://grantee-server.onrender.com/user/0x123abc...?signature=0xdef456..."
 ```
 
 **Expected Response:**
@@ -62,7 +62,7 @@ curl "http://localhost:8000/user/0x123abc...?signature=0xdef456..."
 
 **Request to `POST /scholarship`**
 ```bash
-curl -X POST http://localhost:8000/scholarship \
+curl -X POST https://grantee-server.onrender.com/scholarship \
   -H "Content-Type: application/json" \
   -d '{
     "id": "merit-2023",
@@ -103,7 +103,7 @@ curl -X POST http://localhost:8000/scholarship \
 
 **Request to `GET /scholarships`**
 ```bash
-curl "http://localhost:8000/scholarships"
+curl "https://grantee-server.onrender.com/scholarships"
 ```
 
 **Expected Response:**
@@ -144,7 +144,7 @@ curl "http://localhost:8000/scholarships"
 
 **Request to `GET /scholarship/{scholarship_id}`**
 ```bash
-curl "http://localhost:8000/scholarship/merit-2023"
+curl "https://grantee-server.onrender.com/scholarship/merit-2023"
 ```
 
 **Expected Response:**
@@ -170,7 +170,7 @@ curl "http://localhost:8000/scholarship/merit-2023"
 
 **Request to `PUT /scholarship/{scholarship_id}`**
 ```bash
-curl -X PUT http://localhost:8000/scholarship/merit-2023 \
+curl -X PUT https://grantee-server.onrender.com/scholarship/merit-2023 \
   -H "Content-Type: application/json" \
   -d '{
     "id": "merit-2023",
@@ -213,7 +213,7 @@ curl -X PUT http://localhost:8000/scholarship/merit-2023 \
 
 **Request to `DELETE /scholarship/{scholarship_id}`**
 ```bash
-curl -X DELETE "http://localhost:8000/scholarship/merit-2023"
+curl -X DELETE "https://grantee-server.onrender.com/scholarship/merit-2023"
 ```
 
 **Expected Response:**
@@ -227,7 +227,7 @@ curl -X DELETE "http://localhost:8000/scholarship/merit-2023"
 
 **Request to `POST /apply`**
 ```bash
-curl -X POST http://localhost:8000/apply \
+curl -X POST https://grantee-server.onrender.com/apply \
   -H "Content-Type: application/json" \
   -d '{
     "wallet_address": "0x123abc...",
@@ -293,7 +293,7 @@ curl -X POST http://localhost:8000/apply \
 
 **Request to `GET /applications/{wallet_address}`**
 ```bash
-curl "http://localhost:8000/applications/0x123abc...?signature=0xdef456..."
+curl "https://grantee-server.onrender.com/applications/0x123abc...?signature=0xdef456..."
 ```
 
 **Expected Response:**
@@ -329,7 +329,7 @@ curl "http://localhost:8000/applications/0x123abc...?signature=0xdef456..."
 
 **Request to `GET /application/{application_id}`**
 ```bash
-curl "http://localhost:8000/application/550e8400-e29b-41d4-a716-446655440000?wallet_address=0x123abc...&signature=0xdef456..."
+curl "https://grantee-server.onrender.com/application/550e8400-e29b-41d4-a716-446655440000?wallet_address=0x123abc...&signature=0xdef456..."
 ```
 
 **Expected Response:**
@@ -398,7 +398,7 @@ curl "http://localhost:8000/application/550e8400-e29b-41d4-a716-446655440000?wal
 
 **Request to `POST /query`**
 ```bash
-curl -X POST http://localhost:8000/query \
+curl -X POST https://grantee-server.onrender.com/query \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What are the eligibility requirements for the Merit Scholarship program?"
@@ -436,7 +436,7 @@ curl -X POST http://localhost:8000/query \
 
 **Request to `POST /question`**
 ```bash
-curl -X POST http://localhost:8000/question \
+curl -X POST https://grantee-server.onrender.com/question \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What are the eligibility requirements for the Merit Scholarship program?"
@@ -478,7 +478,7 @@ curl -X POST http://localhost:8000/question \
 
 **Request to `POST /decision`**
 ```bash
-curl -X POST http://localhost:8000/decision \
+curl -X POST https://grantee-server.onrender.com/decision \
   -H "Content-Type: application/json" \
   -d '{
     "student_data": {
