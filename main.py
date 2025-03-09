@@ -3,12 +3,14 @@ import os
 from dotenv import load_dotenv
 from llms.gemini import GeminiLLM
 from rag.rag_api import RAGSimulator
+import datetime
+import uuid
 
 from fastapi import FastAPI, HTTPException, Depends, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
-from sqlalchemy import create_engine, Column, String, JSON
+from sqlalchemy import create_engine, Column, String, JSON, Integer, Float
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from web3.auto import w3
 from eth_account.messages import encode_defunct
@@ -36,6 +38,29 @@ class User(Base):
     __tablename__ = "users"
     wallet_address = Column(String, primary_key=True, index=True)
     data = Column(JSON)
+
+# ORM model for a scholarship
+class Scholarship(Base):
+    __tablename__ = "scholarships"
+    id = Column(String, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    max_amount_per_applicant = Column(Float, nullable=False)
+    deadline = Column(String, nullable=False)
+    applicants = Column(Integer, nullable=False, default=0)
+    description = Column(String, nullable=False)
+    requirements = Column(JSON, nullable=False)  # Stored as a list of strings
+
+# ORM model for a scholarship application
+class ScholarshipApplicationRecord(Base):
+    __tablename__ = "applications"
+    id = Column(String, primary_key=True, index=True)  # Auto-generated ID
+    wallet_address = Column(String, index=True)
+    scholarship_id = Column(String, index=True)
+    student_data = Column(JSON)
+    result = Column(JSON)  # Store the complete decision result
+    decision = Column(String)  # "approved" or "rejected"
+    confidence = Column(Float)
+    created_at = Column(String)  # ISO format date string
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -79,6 +104,28 @@ class ScholarshipDecisionRequest(BaseModel):
     student_data: Dict[str, Any]
     scholarship_criteria: Dict[str, Any]
     query: Optional[str] = None
+
+# Pydantic model for Scholarship data
+class ScholarshipData(BaseModel):
+    id: str
+    title: str
+    maxAmountPerApplicant: float
+    deadline: str
+    applicants: int
+    description: str
+    requirements: List[str]
+
+# Helper function to convert a Scholarship ORM object to a dictionary
+def scholarship_to_dict(s: Scholarship) -> dict:
+    return {
+        "id": s.id,
+        "title": s.title,
+        "maxAmountPerApplicant": s.max_amount_per_applicant,
+        "deadline": s.deadline,
+        "applicants": s.applicants,
+        "description": s.description,
+        "requirements": s.requirements,
+    }
 
 # Endpoint for homepage
 @app.get("/")
@@ -135,6 +182,236 @@ def get_user(wallet_address: str, signature: str, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="User not found")
     
     return {"wallet_address": wallet_address, "data": user.data}
+
+# Endpoint to upload (create) scholarship data
+@app.post("/scholarship")
+def create_scholarship(scholarship_data: ScholarshipData, db: Session = Depends(get_db)):    
+    # Check if the scholarship already exists
+    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_data.id).first()
+    if scholarship:
+        raise HTTPException(status_code=400, detail="Scholarship already exists")
+
+    new_scholarship = Scholarship(
+        id=scholarship_data.id,
+        title=scholarship_data.title,
+        max_amount_per_applicant=scholarship_data.maxAmountPerApplicant,
+        deadline=scholarship_data.deadline,
+        applicants=scholarship_data.applicants,
+        description=scholarship_data.description,
+        requirements=scholarship_data.requirements,
+    )
+    
+    db.add(new_scholarship)
+    db.commit()
+    
+    return {"message": "Scholarship created", "scholarship": scholarship_to_dict(new_scholarship)}
+
+# Endpoint to get a single scholarship by ID
+@app.get("/scholarship/{scholarship_id}")
+def get_scholarship(scholarship_id: str, db: Session = Depends(get_db)):
+    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_id).first()
+    if not scholarship:
+        raise HTTPException(status_code=404, detail="Scholarship not found")
+    return {"scholarship": scholarship_to_dict(scholarship)}
+
+# Endpoint to get all scholarships
+@app.get("/scholarships")
+def get_scholarships(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    scholarships = db.query(Scholarship).offset(skip).limit(limit).all()
+    return {"scholarships": [scholarship_to_dict(s) for s in scholarships]}
+
+# Endpoint to update a scholarship
+@app.put("/scholarship/{scholarship_id}")
+def update_scholarship(scholarship_id: str, scholarship_data: ScholarshipData, db: Session = Depends(get_db)):
+    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_id).first()
+    if not scholarship:
+        raise HTTPException(status_code=404, detail="Scholarship not found")
+    
+    # Update scholarship attributes
+    scholarship.title = scholarship_data.title
+    scholarship.max_amount_per_applicant = scholarship_data.maxAmountPerApplicant
+    scholarship.deadline = scholarship_data.deadline
+    scholarship.applicants = scholarship_data.applicants
+    scholarship.description = scholarship_data.description
+    scholarship.requirements = scholarship_data.requirements
+    
+    db.commit()
+    
+    return {"message": "Scholarship updated", "scholarship": scholarship_to_dict(scholarship)}
+
+# Endpoint to delete a scholarship
+@app.delete("/scholarship/{scholarship_id}")
+def delete_scholarship(scholarship_id: str, db: Session = Depends(get_db)):
+    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_id).first()
+    if not scholarship:
+        raise HTTPException(status_code=404, detail="Scholarship not found")
+    
+    db.delete(scholarship)
+    db.commit()
+    
+    return {"message": "Scholarship deleted"}
+
+# Helper function to convert a ScholarshipApplicationRecord to a dictionary
+def application_to_dict(app: ScholarshipApplicationRecord) -> dict:
+    return {
+        "id": app.id,
+        "wallet_address": app.wallet_address,
+        "scholarship_id": app.scholarship_id,
+        "decision": app.decision,
+        "confidence": app.confidence,
+        "created_at": app.created_at
+    }
+
+# Endpoint to get user's scholarship applications
+@app.get("/applications/{wallet_address}")
+def get_user_applications(wallet_address: str, signature: str, db: Session = Depends(get_db)):
+    # Verify the signature using the wallet_address as the message
+    encoded_message = encode_defunct(text=wallet_address.lower())
+    try:
+        recovered_address = w3.eth.account.recover_message(encoded_message, signature=signature)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Signature verification error: {e}")
+
+    if recovered_address.lower() != wallet_address.lower():
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    
+    # Get all applications for the user
+    applications = db.query(ScholarshipApplicationRecord).filter(
+        ScholarshipApplicationRecord.wallet_address == wallet_address
+    ).all()
+    
+    # Get the corresponding scholarship details for each application
+    result = []
+    for app in applications:
+        scholarship = db.query(Scholarship).filter(Scholarship.id == app.scholarship_id).first()
+        if scholarship:
+            app_dict = application_to_dict(app)
+            app_dict["scholarship"] = scholarship_to_dict(scholarship)
+            result.append(app_dict)
+    
+    return {"applications": result}
+
+# Get a specific application
+@app.get("/application/{application_id}")
+def get_application(application_id: str, wallet_address: str, signature: str, db: Session = Depends(get_db)):
+    # Verify the signature using the application_id as the message
+    encoded_message = encode_defunct(text=application_id)
+    try:
+        recovered_address = w3.eth.account.recover_message(encoded_message, signature=signature)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Signature verification error: {e}")
+
+    if recovered_address.lower() != wallet_address.lower():
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    
+    # Get the application
+    application = db.query(ScholarshipApplicationRecord).filter(
+        ScholarshipApplicationRecord.id == application_id,
+        ScholarshipApplicationRecord.wallet_address == wallet_address
+    ).first()
+    
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    # Get the scholarship details
+    scholarship = db.query(Scholarship).filter(Scholarship.id == application.scholarship_id).first()
+    if not scholarship:
+        raise HTTPException(status_code=404, detail="Scholarship not found")
+    
+    # Return the full application details including the decision result
+    result = {
+        "application": application_to_dict(application),
+        "scholarship": scholarship_to_dict(scholarship),
+        "student_data": application.student_data,
+        "result": application.result
+    }
+    
+    return result
+
+# Model for scholarship application
+class ScholarshipApplication(BaseModel):
+    wallet_address: str
+    scholarship_id: str
+    student_data: Dict[str, Any]
+    signature: str
+
+# Endpoint to apply for a scholarship
+@app.post("/apply")
+async def apply_for_scholarship(application: ScholarshipApplication, db: Session = Depends(get_db)):
+    # Verify the user's signature
+    encoded_message = encode_defunct(text=json.dumps(application.student_data))
+    try:
+        recovered_address = w3.eth.account.recover_message(encoded_message, signature=application.signature)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Signature verification error: {e}")
+
+    if recovered_address.lower() != application.wallet_address.lower():
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    
+    # Check if the scholarship exists
+    scholarship = db.query(Scholarship).filter(Scholarship.id == application.scholarship_id).first()
+    if not scholarship:
+        raise HTTPException(status_code=404, detail="Scholarship not found")
+    
+    # Process the scholarship application through our decision making pipeline
+    try:
+        # Convert the scholarship to the expected format for the decision API
+        scholarship_criteria = {
+            "name": scholarship.title,
+            "description": scholarship.description,
+            "requirements": scholarship.requirements,
+            "amount": scholarship.max_amount_per_applicant
+        }
+        
+        # Process the decision
+        result = await process_decision(application.student_data, scholarship_criteria)
+        
+        # Safely access vote_count and vote_breakdown
+        vote_count = result.get("vote_count", {}) or {}
+        vote_breakdown = result.get("vote_breakdown", {}) or {}
+        
+        # Add voting details
+        result["vote_details"] = {
+            "total_votes": result.get("total_votes", 0) or sum(vote_count.values()) if vote_count else 0,
+            "approval_votes": vote_count.get("approve", 0),
+            "rejection_votes": vote_count.get("reject", 0),
+            "confidence": result.get("confidence", 0.0) or 0.0,
+            "decision_threshold": 0.5,  # Majority vote
+            "agent_breakdown": vote_breakdown.get("by_agent", {}),
+            "source_breakdown": vote_breakdown.get("by_source", {})
+        }
+        
+        # Update the applicant count
+        scholarship.applicants += 1
+        db.commit()
+        
+        # Generate a unique ID and timestamp for the application
+        application_id = str(uuid.uuid4())
+        current_time = datetime.datetime.now().isoformat()
+        
+        # Add timestamp to the result
+        result["created_at"] = current_time
+        
+        # Save the application result to the database
+        application_record = ScholarshipApplicationRecord(
+            id=application_id,
+            wallet_address=application.wallet_address,
+            scholarship_id=application.scholarship_id,
+            student_data=application.student_data,
+            result=result,
+            decision="approved" if result.get("decision", False) else "rejected",
+            confidence=result.get("confidence", 0.0),
+            created_at=current_time
+        )
+        db.add(application_record)
+        db.commit()
+        
+        # Add application ID to the result
+        result["application_id"] = application_id
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing application: {str(e)}")
 
 # New endpoint for routing a query
 @app.post("/query")

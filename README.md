@@ -69,16 +69,76 @@ Use this endpoint to directly evaluate a student for scholarship eligibility.
 {
   "student_data": {
     "name": "Jane Smith",
-    "gpa": 3.7,
-    "background": "First-generation student",
-    "activities": ["Student government", "Volunteer work"]
+    "gpa": 3.9,
+    "background": "First-generation college student",
+    "activities": ["Student Government President", "Volunteer at Local Hospital"],
+    "essay": "I am committed to using my education to serve underrepresented communities..."
   },
   "scholarship_criteria": {
     "name": "Merit Scholarship",
-    "minimum_gpa": 3.5,
-    "preference": "Leadership experience",
-    "amount": "$10,000"
+    "requirements": ["GPA above 3.5", "Demonstrated leadership experience"],
+    "amount": 10000
   }
+}
+```
+
+### Scholarship Management
+The application includes a complete set of endpoints for managing scholarships.
+
+#### Create a Scholarship
+**Endpoint:** `POST /scholarship`
+
+**Example Request:**
+```json
+{
+  "id": "merit-2023",
+  "title": "Merit Scholarship 2023",
+  "maxAmountPerApplicant": 10000,
+  "deadline": "2023-12-31",
+  "applicants": 0,
+  "description": "Scholarship for high-achieving students with leadership potential",
+  "requirements": [
+    "GPA above 3.5",
+    "Demonstrated leadership experience",
+    "Community service"
+  ]
+}
+```
+
+#### Get All Scholarships
+**Endpoint:** `GET /scholarships`
+
+**Query Parameters:**
+- `skip` (optional): Number of records to skip for pagination (default: 0)
+- `limit` (optional): Maximum number of records to return (default: 100)
+
+#### Get a Specific Scholarship
+**Endpoint:** `GET /scholarship/{scholarship_id}`
+
+#### Update a Scholarship
+**Endpoint:** `PUT /scholarship/{scholarship_id}`
+
+Request body is the same as the create endpoint.
+
+#### Delete a Scholarship
+**Endpoint:** `DELETE /scholarship/{scholarship_id}`
+
+#### Apply for a Scholarship
+**Endpoint:** `POST /apply`
+
+**Example Request:**
+```json
+{
+  "wallet_address": "0x123abc...",
+  "scholarship_id": "merit-2023",
+  "student_data": {
+    "name": "Jane Smith",
+    "gpa": 3.9,
+    "background": "First-generation college student",
+    "activities": ["Student Government President", "Volunteer at Local Hospital"],
+    "essay": "I am committed to using my education to serve underrepresented communities..."
+  },
+  "signature": "0xabcdef..." 
 }
 ```
 
